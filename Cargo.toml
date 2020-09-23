@@ -1,5 +1,12 @@
-[workspace]
-members = [
-    "hyperpixel_init",
-    "bcm_host_sys"
-]
+[package]
+name = "hyperpixel_init"
+version = "0.1.0"
+authors = ["Bernardo Meurer <bernardo@meurer.org>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.32"
+byteorder = "1.3.4"
+libc = "0.2.77"
+log = { version = "0.4.11", features = [ "release_max_level_debug", "max_level_debug" ] }
+env_logger = "0.7.1"
