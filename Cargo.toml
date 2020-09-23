@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "hyperpixel_init",
+    "bcm_host_sys"
+]
