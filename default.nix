@@ -1,7 +1,7 @@
 let
   pkgs = import ./nix;
 in
-pkgs.pkgsStatic.callPackage
+pkgs.callPackage
   ({ naersk, cargo, gcc, pkgconfig, raspberrypi-tools, llvmPackages }:
     naersk.buildPackage {
       name = "hyperpixel_init";
