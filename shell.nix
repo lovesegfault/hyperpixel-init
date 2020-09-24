@@ -1,17 +1,14 @@
 let
-  pkgs = import ./nix;
+  pkgs' = import ./nix;
+  pkgs = import pkgs'.path { };
 in
-pkgs.callPackage
-  (
-    { mkShell, cargo-edit, niv, nixpkgs-fmt, rustFull }:
-    pkgs.mkShell {
-      name = "hyperpixel-init";
-      nativeBuildInputs = [
-        cargo-edit
-        niv
-        nixpkgs-fmt
-        rustFull
-      ];
-    }
-  )
-{ }
+pkgs.mkShell {
+  name = "hyperpixel-init";
+  nativeBuildInputs = with pkgs; [
+    cargo-edit
+    niv
+    nixpkgs-fmt
+    cargo
+    rust-analyzer
+  ];
+}

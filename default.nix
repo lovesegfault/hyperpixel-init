@@ -1,15 +1,13 @@
-let
-  pkgs' = import ./nix;
-  pkgs = if builtins.currentSystem == "aarch64-linux"
-    then pkgs'
-    else pkgs'.pkgsCross.aarch64-multiplatform
-  ;
-in
+{ pkgs ? import ./nix }:
 pkgs.callPackage
-  ({ naersk, cargo, gitignoreSource }:
-    naersk.buildPackage {
-      name = "hyperpixel_init";
+  (
+    { rustPlatform }: rustPlatform.buildRustPackage {
+      pname = "hyperpixel-init";
+      version = "unstable";
+
       src = ./.;
-      nativeBuildInputs = [ cargo ];
-    })
+
+      cargoSha256 = "1436gi1vb2jwi1zv15qp0qnh364qjwwvhd5x0mnk0fdx4ljv9wi7";
+    }
+  )
 { }
