@@ -1,7 +1,10 @@
 let
   sources = import ./sources.nix;
-  pkgs' = import sources.nixpkgs {
+  lib = import (sources.nixpkgs + "/lib");
+  pkgs = import sources.nixpkgs {
     overlays = [ (self: super: { naersk = self.callPackage sources.naersk { }; }) ];
+    system = "aarch64-linux";
   };
+  # // lib.optionalAttrs (builtins.currentSystem != "aarch64-linux") { crossSystem = lib.systems.examples.aarch64-multiplatform; };
 in
-if builtins.currentSystem == "aarch64-linux" then pkgs' else pkgs'.pkgsCross.aarch64-multiplatform
+pkgs
