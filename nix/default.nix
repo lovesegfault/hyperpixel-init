@@ -6,6 +6,7 @@ let
       {
         rustChannel = self.rustChannelOf { channel = "nightly"; };
         rustFull = self.rustChannel.rust.override {
+          targets = [ "aarch64-unknown-linux-gnu" ];
           extensions = [
             "clippy-preview"
             "rust-analysis"
@@ -16,9 +17,12 @@ let
             "rustfmt-preview"
           ];
         };
+        cargo = self.rustFull;
+        rustc = self.rustFull;
       }
     )
+    (self: super: { gitignoreSource = import sources.gitignoreSource; })
     (self: super: { naersk = self.callPackage sources.naersk { }; })
   ];
 in
-import sources.nixpkgs { inherit overlays; system = "aarch64-linux"; }
+  import sources.nixpkgs { inherit overlays; }
