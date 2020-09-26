@@ -7,12 +7,12 @@ let
     overlays = [
       (import sources.nixpkgs-mozilla)
       (self: super: {
-        rustChannel = self.rustChannelOf { channel = "stable"; };
+        rustChannel = self.rustChannelOf { channel = "nightly"; };
         rustFull = self.rustChannel.rust.override {
           extensions = [
             "clippy-preview"
             "rust-analysis"
-            # "rust-analyzer-preview"
+            "rust-analyzer-preview"
             "rls-preview"
             "rust-src"
             "rust-std"

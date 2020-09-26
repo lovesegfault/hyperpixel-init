@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
 use byteorder::{BigEndian, ByteOrder};
 use libc::{MAP_FAILED, MAP_SHARED, PROT_READ, PROT_WRITE};
-use log::{debug, info, warn};
 use std::{
     fs::{File, OpenOptions},
     io::prelude::*,
     os::unix::io::IntoRawFd,
     path::{Path, PathBuf},
 };
+use tracing::{debug, info, warn};
 
 #[allow(dead_code)] // We want to document the other modes even if we don't use them
 pub enum PinMode {
