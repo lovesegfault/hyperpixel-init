@@ -19,7 +19,6 @@ let
             "rustfmt-preview"
           ];
         };
-        cargo = self.rustChannel.rust;
         rustc = self.rustChannel.rust;
       })
       (self: super: { naersk = self.callPackage sources.naersk { }; })
