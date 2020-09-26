@@ -270,7 +270,7 @@ fn find_gpio_mem() -> Result<*mut u32> {
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
             mem.into_raw_fd(),
-            (bcm_phys_addr + 0x20000) as i64,
+            (bcm_phys_addr + 0x20000) as isize,
         )
     };
     anyhow::ensure!(map != MAP_FAILED, "Failed to mmap /dev/mem");
