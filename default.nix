@@ -1,4 +1,4 @@
-{ pkgs ? import ./nix }:
+{ pkgs ? import ./nix { } }:
 let
   hyperpixel_init = { naersk, lib }: naersk.buildPackage {
     name = "hyperpixel_init";

@@ -1,6 +1,5 @@
 let
-  pkgs' = import ./nix;
-  pkgs = import pkgs'.path { };
+  pkgs = import ./nix { system = builtins.currentSystem; };
 in
 pkgs.mkShell {
   name = "hyperpixel-init";
@@ -8,7 +7,6 @@ pkgs.mkShell {
     cargo-edit
     niv
     nixpkgs-fmt
-    cargo
-    rust-analyzer
+    rustFull
   ];
 }
