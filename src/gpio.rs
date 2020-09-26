@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[allow(dead_code)] // We want to document the other modes even if we don't use them
 pub enum PinMode {
     In = 0,
     Out = 1,
