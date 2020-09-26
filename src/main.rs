@@ -1,12 +1,18 @@
 mod gpio;
 mod hyperpixel;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gpio::{Gpio, PinMode};
-use log::info;
+use tracing::{info, Level};
+use tracing_subscriber::FmtSubscriber;
 
 fn main() -> Result<()> {
-    env_logger::init();
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::INFO)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)
+        .with_context(|| "Unable to set global default subscriber")?;
+
     info!("HyperPixel 4 Initialization");
 
     let uid = unsafe { libc::getuid() };
