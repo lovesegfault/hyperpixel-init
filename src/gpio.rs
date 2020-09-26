@@ -81,7 +81,7 @@ impl Gpio {
 
     pub fn set_pin_level(&mut self, pin: u32, level: bool) -> Result<()> {
         let register = (pin / 32) as isize;
-        let pin_shift = (pin % 32) * 1;
+        let pin_shift = pin % 32;
 
         let level = match level {
             true => unsafe { self.0.offset(0x1c / 0x4) },

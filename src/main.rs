@@ -16,7 +16,6 @@ fn main() -> Result<()> {
 
     info!("Setting Pin Modes");
     (0..10)
-        .into_iter()
         .chain(12..18)
         .chain(20..26)
         .map(|pin| gpio.set_pin_mode(pin, PinMode::Alt2))
