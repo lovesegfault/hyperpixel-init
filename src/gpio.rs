@@ -4,7 +4,7 @@ use libc::{MAP_FAILED, MAP_SHARED, PROT_READ, PROT_WRITE};
 use std::{
     fs::{File, OpenOptions},
     io::prelude::*,
-    os::unix::io::IntoRawFd,
+    os::unix::io::AsRawFd,
     path::{Path, PathBuf},
 };
 use tracing::{debug, info, warn};
@@ -21,26 +21,29 @@ pub enum PinMode {
     Alt3 = 7,
 }
 
-pub struct Gpio(*mut u32);
+pub struct Gpio {
+    addr: *mut u32,
+    _fd: File,
+}
 
 impl Gpio {
     pub fn new() -> Result<Self> {
-        let addr = match map_gpio_mem() {
-            Ok(addr) => {
+        let (fd, addr) = match map_gpio_mem() {
+            Ok((fd, addr)) => {
                 info!("Using /dev/gpiomem");
                 debug!("/dev/gpiomem = {:#?}", addr);
-                addr
+                (fd, addr)
             }
             Err(e) => {
                 warn!("Failed to find /dev/gpiomem: {}", e);
                 debug!("Attempting to compute gpio mem offset");
-                let addr = find_gpio_mem()?;
+                let (fd, addr) = find_gpio_mem()?;
                 info!("Using /dev/mem");
                 debug!("/dev/mem = {:#?}", addr);
-                addr
+                (fd, addr)
             }
         };
-        Ok(Self(addr))
+        Ok(Self { addr, _fd: fd })
     }
 
     pub fn set_pin_mode(&mut self, pin: u32, mode: PinMode) -> Result<()> {
@@ -55,9 +58,9 @@ impl Gpio {
         // p. 92
         let pin_shift: u32 = (pin % 10) * 3;
         debug!("pin: {}, shift: {}", pin, pin_shift);
-        // offset our base address by our register, which will give us a ptr to one of the 7 FSEL
+        // offset our base address by our register, which will give us a addr to one of the 7 FSEL
         // banks
-        let function_select_addr = unsafe { self.0.offset(register as isize) };
+        let function_select_addr = unsafe { self.addr.offset(register as isize) };
         debug!(
             "pin: {}, function_select_addr: {:#p}",
             pin, function_select_addr
@@ -84,8 +87,8 @@ impl Gpio {
         let pin_shift = pin % 32;
 
         let level = match level {
-            true => unsafe { self.0.offset(0x1c / 0x4) },
-            false => unsafe { self.0.offset(0x28 / 0x4) },
+            true => unsafe { self.addr.offset(0x1c / 0x4) },
+            false => unsafe { self.addr.offset(0x28 / 0x4) },
         };
 
         let pin_level = unsafe { level.offset(register) };
@@ -94,7 +97,7 @@ impl Gpio {
     }
 }
 
-fn map_gpio_mem() -> Result<*mut u32> {
+fn map_gpio_mem() -> Result<(File, *mut u32)> {
     let gpiomem = PathBuf::from("/dev/gpiomem");
     anyhow::ensure!(gpiomem.exists(), "Failed to find /dev/gpiomem");
 
@@ -105,21 +108,19 @@ fn map_gpio_mem() -> Result<*mut u32> {
         .with_context(|| "Failed to open /dev/gpiomem")?;
 
     // FIXME: Why do we only read 4096 bytes?
-    // NB: Yes, we're leaking the file descriptor. This is a short lived program and it's more
-    // hassle than it's worth to track it's lifetime
     let map = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
             4096,
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
-            gpiomem.into_raw_fd(),
+            gpiomem.as_raw_fd(),
             0x0,
         )
     };
     anyhow::ensure!(map != MAP_FAILED, "Failed to mmap /dev/gpiomem");
 
-    Ok(map as *mut u32)
+    Ok((gpiomem, map as *mut u32))
 }
 
 fn parse_cells<P: AsRef<Path>>(path: P) -> Result<u32> {
@@ -245,7 +246,7 @@ fn find_host_peripheral_address() -> Result<u64> {
     Ok(gpio_addr)
 }
 
-fn find_gpio_mem() -> Result<*mut u32> {
+fn find_gpio_mem() -> Result<(File, *mut u32)> {
     let mem = PathBuf::from("/dev/mem");
     anyhow::ensure!(mem.exists(), "Failed to find /dev/mem");
 
@@ -269,11 +270,11 @@ fn find_gpio_mem() -> Result<*mut u32> {
             4096,
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
-            mem.into_raw_fd(),
+            mem.as_raw_fd(),
             (bcm_phys_addr + 0x20000) as libc::off_t,
         )
     };
     anyhow::ensure!(map != MAP_FAILED, "Failed to mmap /dev/mem");
 
-    Ok(map as *mut u32)
+    Ok((mem, map as *mut u32))
 }
