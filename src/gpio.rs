@@ -7,7 +7,7 @@ use std::{
     os::unix::io::AsRawFd,
     path::{Path, PathBuf},
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[allow(dead_code)] // We want to document the other modes even if we don't use them
 pub enum PinMode {
@@ -26,7 +26,19 @@ pub struct Gpio {
     _fd: File,
 }
 
+impl Drop for Gpio {
+    fn drop(&mut self) {
+        let ret = unsafe { libc::munmap(self.addr as *mut libc::c_void, Self::MMAP_LENGTH) };
+        if ret == -1 {
+            error!("Failed to unmap gpio!");
+        }
+    }
+}
+
 impl Gpio {
+    // FIXME: Why do we only read 4096 bytes?
+    const MMAP_LENGTH: usize = 4096;
+
     pub fn new() -> Result<Self> {
         let (fd, addr) = match map_gpio_mem() {
             Ok((fd, addr)) => {
@@ -107,11 +119,10 @@ fn map_gpio_mem() -> Result<(File, *mut u32)> {
         .open("/dev/gpiomem")
         .with_context(|| "Failed to open /dev/gpiomem")?;
 
-    // FIXME: Why do we only read 4096 bytes?
     let map = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
-            4096,
+            Gpio::MMAP_LENGTH,
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
             gpiomem.as_raw_fd(),
@@ -260,14 +271,12 @@ fn find_gpio_mem() -> Result<(File, *mut u32)> {
         .with_context(|| "Failed to find host's peripheral address")?;
     debug!("bcm_phys_addr: {:#x}", bcm_phys_addr);
 
-    // FIXME: How/why do we know:
-    // 1. that we only need to mmap the first 4096 bytes?
-    // 2. That we need to map at offset bcm_phys_addr is clear, but why the 0x20000 offset? Where
-    //    is that documented?
+    // FIXME: How/why do we know that we need to map at offset bcm_phys_addr is clear, but why the
+    // 0x20000 offset? Where is that documented?
     let map = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
-            4096,
+            Gpio::MMAP_LENGTH,
             PROT_READ | PROT_WRITE,
             MAP_SHARED,
             mem.as_raw_fd(),
