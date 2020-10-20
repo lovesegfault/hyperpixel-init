@@ -1,9 +1,10 @@
-{ pkgs ? import ./nix { } }:
+{ overrides ? { } }:
 let
+  pkgs = import ./nix { };
   hyperpixel_init = { naersk, lib }: naersk.buildPackage {
     name = "hyperpixel_init";
     src = lib.cleanSource ./.;
     CARGO_BUILD_TARGET = "aarch64-unknown-linux-gnu";
   };
 in
-pkgs.callPackage hyperpixel_init { }
+pkgs.callPackage hyperpixel_init overrides
