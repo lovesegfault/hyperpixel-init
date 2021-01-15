@@ -9,7 +9,6 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.46.0 # MSRV
         target:
           - armv7-unknown-linux-gnueabihf
           - armv7-unknown-linux-musleabihf
