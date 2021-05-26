@@ -2,16 +2,14 @@ mod gpio;
 mod hyperpixel;
 
 use anyhow::{Context, Result};
+use flexi_logger::Logger;
 use gpio::{Gpio, PinMode};
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+use log::info;
 
 fn main() -> Result<()> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .with_context(|| "Unable to set global default subscriber")?;
+    Logger::with_env_or_str("info")
+        .start()
+        .with_context(|| "failed to initialize logger")?;
 
     info!("HyperPixel 4 Initialization");
 

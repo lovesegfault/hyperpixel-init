@@ -7,9 +7,9 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.40"
 byteorder = "1.4.3"
+flexi_logger = { version = "0.17.1", features = ["colors"] }
 libc = "0.2.95"
-tracing = "0.1.26"
-tracing-subscriber = "0.2.18"
+log = "0.4.14"
 
 [profile.release]
 lto = "fat"
