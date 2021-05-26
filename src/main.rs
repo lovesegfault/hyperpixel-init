@@ -30,5 +30,6 @@ fn main() -> Result<()> {
     info!("Configuring Display");
     hyperpixel::hyperpixel_configure(&mut gpio)?;
 
+    info!("Done!");
     Ok(())
 }
