@@ -67,14 +67,13 @@ pub fn hyperpixel_configure(gpio: &mut crate::gpio::Gpio) -> Result<()> {
         0x160, 0x035, 0x100, 0x011, 0x100, -1, 0x029, 0x100, -1,
     ]
     .iter()
-    .map(|c| match c {
+    .try_for_each(|c| match c {
         -1 => {
             std::thread::sleep(std::time::Duration::from_micros(120_000));
             Ok(())
         }
         c => write_9bit(gpio, *c as u16),
-    })
-    .collect::<Result<(), _>>()?;
+    })?;
 
     // revert pin modes
     gpio.set_pin_mode(CLK, PinMode::In)?;

@@ -24,8 +24,7 @@ fn main() -> Result<()> {
     (0..10)
         .chain(12..18)
         .chain(20..26)
-        .map(|pin| gpio.set_pin_mode(pin, PinMode::Alt2))
-        .collect::<Result<()>>()?;
+        .try_for_each(|pin| gpio.set_pin_mode(pin, PinMode::Alt2))?;
 
     info!("Configuring Display");
     hyperpixel::hyperpixel_configure(&mut gpio)?;
