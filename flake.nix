@@ -55,13 +55,8 @@
           inherit src;
         };
 
-        crateFmt = craneLib.cargoFmt {
-          inherit cargoArtifacts src;
-        };
-
         crateClippy = craneLib.cargoClippy {
-          inherit src;
-          cargoArtifacts = crateFmt;
+          inherit cargoArtifacts src;
           cargoClippyExtraArgs = "-- --deny warnings";
         };
 
