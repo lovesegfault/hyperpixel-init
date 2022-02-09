@@ -1,74 +1,77 @@
 {
   inputs = {
-    fenix = {
-      url = "github:nix-community/fenix";
+    crane = {
+      url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.utils.follows = "utils";
+      inputs.flake-compat.follows = "flake-compat";
     };
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-    flake-utils.url = "github:numtide/flake-utils";
+    utils.url = "github:numtide/flake-utils";
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    naersk = {
-      url = "github:nix-community/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
+      inputs.flake-utils.follows = "utils";
+    };
+    rust = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "utils";
     };
   };
 
-  outputs = { self, fenix, flake-utils, gitignore, naersk, nixpkgs, pre-commit-hooks, ... }:
-    flake-utils.lib.eachDefaultSystem (localSystem:
+  outputs = { self, crane, gitignore, nixpkgs, pre-commit-hooks, rust, utils, ... }:
+    utils.lib.eachDefaultSystem (localSystem:
       let
-        crossSystem = nixpkgs.lib.systems.examples.aarch64-multiplatform-musl // { useLLVM = true; };
+        crossSystem = "aarch64-linux";
         pkgs = import nixpkgs {
           inherit localSystem crossSystem;
           overlays = [
-            fenix.overlay
+            rust.overlay
             gitignore.overlay
-            naersk.overlay
-            (final: prev: {
-              rustToolchainCfg = {
-                file = ./rust-toolchain.toml;
-                sha256 = "sha256-NL+YHnOj1++1O7CAaQLijwAxKJW9SnHg8qsiOJ1m0Kk=";
-              };
-
-              rustToolchain = final.fenix.combine [
-                (final.pkgsBuildHost.fenix.fromToolchainFile final.rustToolchainCfg)
-                (final.fenix.targets.${crossSystem.config}.fromToolchainFile final.rustToolchainCfg)
-              ];
-
-              rustStdenv = final.pkgsBuildHost.llvmPackages_13.stdenv;
-              rustLinker = final.pkgsBuildHost.llvmPackages_13.lld;
-
-              naerskBuild = (prev.pkgsBuildHost.naersk.override {
-                cargo = final.rustToolchain;
-                rustc = final.rustToolchain;
-                stdenv = final.rustStdenv;
-              }).buildPackage;
-            })
           ];
+        };
+
+        rustToolchain = pkgs.pkgsBuildHost.rust-bin.stable.latest.default;
+
+        craneLib = (crane.mkLib pkgs).overrideScope' (final: prev: {
+          cargo = rustToolchain;
+          rustc = rustToolchain;
+          clippy = rustToolchain;
+          rustfmt = rustToolchain;
+        });
+
+        src = pkgs.gitignoreSource ./.;
+
+        cargoArtifacts = craneLib.buildDepsOnly {
+          inherit src;
+        };
+
+        crateFmt = craneLib.cargoFmt {
+          inherit cargoArtifacts src;
+        };
+
+        crateClippy = craneLib.cargoClippy {
+          inherit src;
+          cargoArtifacts = crateFmt;
+          cargoClippyExtraArgs = "-- --deny warnings";
+        };
+
+        crate = craneLib.buildPackage {
+          inherit src;
+          cargoArtifacts = crateClippy;
         };
       in
       {
-        packages.hyperpixel-init = pkgs.naerskBuild {
-          name = "hyperpixel-init";
-
-          src = pkgs.gitignoreSource ./.;
-
-          nativeBuildInputs = with pkgs; [ rustStdenv.cc rustLinker ];
-
-          CARGO_BUILD_TARGET = crossSystem.config;
-          RUSTFLAGS = "-C linker-flavor=ld.lld -C target-feature=+crt-static";
-        };
+        packages.hyperpixel-init = crate;
 
         defaultPackage = self.packages.${localSystem}.hyperpixel-init;
 
@@ -85,14 +88,13 @@
             nix-linter
             nixpkgs-fmt
             rnix-lsp
-            rust-analyzer-nightly
+            rust-analyzer
           ];
-          inherit (self.defaultPackage.${localSystem}) CARGO_BUILD_TARGET RUSTFLAGS;
           inherit (self.checks.${localSystem}.pre-commit-check) shellHook;
         };
 
         checks.pre-commit-check = (pre-commit-hooks.lib.${localSystem}.run {
-          src = ./.;
+          inherit src;
           hooks = {
             nix-linter.enable = true;
             nixpkgs-fmt.enable = true;
