@@ -183,20 +183,20 @@ fn parse_ranges<P: AsRef<std::path::Path>>(
             let mut range = Vec::from(range);
 
             let child_addr = match child_size {
-                1 => BigEndian::read_u32(&range.drain(0..4).as_slice()) as u64,
-                2 => BigEndian::read_u64(&range.drain(0..8).as_slice()),
+                1 => BigEndian::read_u32(range.drain(0..4).as_slice()) as u64,
+                2 => BigEndian::read_u64(range.drain(0..8).as_slice()),
                 _ => unreachable!(),
             };
 
             let parent_addr = match parent_size {
-                1 => BigEndian::read_u32(&range.drain(0..4).as_slice()) as u64,
-                2 => BigEndian::read_u64(&range.drain(0..8).as_slice()),
+                1 => BigEndian::read_u32(range.drain(0..4).as_slice()) as u64,
+                2 => BigEndian::read_u64(range.drain(0..8).as_slice()),
                 _ => unreachable!(),
             };
 
             let length = match length_size {
-                1 => BigEndian::read_u32(&range.drain(0..4).as_slice()) as u64,
-                2 => BigEndian::read_u64(&range.drain(0..8).as_slice()),
+                1 => BigEndian::read_u32(range.drain(0..4).as_slice()) as u64,
+                2 => BigEndian::read_u64(range.drain(0..8).as_slice()),
                 _ => unreachable!(),
             };
             (child_addr, parent_addr, length)
