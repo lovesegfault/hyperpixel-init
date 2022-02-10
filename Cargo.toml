@@ -13,3 +13,4 @@ log = "0.4.14"
 
 [profile.release]
 lto = "fat"
+codegen-units = 1
