@@ -18,56 +18,42 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
   };
 
-  outputs = { self, fenix, flake-utils, gitignore, naersk, nixpkgs, pre-commit-hooks, ... }:
+  outputs = { self, fenix, flake-utils, gitignore, naersk, nixpkgs, ... }:
     flake-utils.lib.eachDefaultSystem (localSystem:
       let
         crossSystem = nixpkgs.lib.systems.examples.aarch64-multiplatform-musl // { useLLVM = true; };
+
         pkgs = import nixpkgs {
           inherit localSystem crossSystem;
-          overlays = [
-            fenix.overlay
-            gitignore.overlay
-            naersk.overlay
-            (final: prev: {
-              rustToolchainCfg = {
-                file = ./rust-toolchain.toml;
-                sha256 = "sha256-NL+YHnOj1++1O7CAaQLijwAxKJW9SnHg8qsiOJ1m0Kk=";
-              };
-
-              rustToolchain = final.fenix.combine [
-                (final.pkgsBuildHost.fenix.fromToolchainFile final.rustToolchainCfg)
-                (final.fenix.targets.${crossSystem.config}.fromToolchainFile final.rustToolchainCfg)
-              ];
-
-              rustStdenv = final.pkgsBuildHost.llvmPackages_13.stdenv;
-              rustLinker = final.pkgsBuildHost.llvmPackages_13.lld;
-
-              naerskBuild = (prev.pkgsBuildHost.naersk.override {
-                cargo = final.rustToolchain;
-                rustc = final.rustToolchain;
-                stdenv = final.rustStdenv;
-              }).buildPackage;
-            })
-          ];
+          overlays = [ fenix.overlay gitignore.overlay naersk.overlay ];
         };
+
+        inherit (pkgs) pkgsBuildBuild pkgsBuildHost;
+
+        llvmToolchain = pkgsBuildHost.llvmPackages_latest;
+
+        rustToolchain = pkgsBuildHost.fenix.fromToolchainFile {
+          file = ./rust-toolchain.toml;
+          sha256 = "sha256-NL+YHnOj1++1O7CAaQLijwAxKJW9SnHg8qsiOJ1m0Kk=";
+        };
+
+        naerskCross = pkgsBuildHost.naersk.override {
+          inherit (llvmToolchain) stdenv;
+          cargo = rustToolchain;
+          rustc = rustToolchain;
+        };
+
+        src = pkgs.gitignoreSource ./.;
       in
       {
-        packages.hyperpixel-init = pkgs.naerskBuild {
+        packages.hyperpixel-init = naerskCross.buildPackage {
           name = "hyperpixel-init";
 
-          src = pkgs.gitignoreSource ./.;
+          inherit src;
 
-          nativeBuildInputs = with pkgs; [ rustStdenv.cc rustLinker ];
-
-          CARGO_BUILD_TARGET = crossSystem.config;
-          RUSTFLAGS = "-C linker-flavor=ld.lld -C target-feature=+crt-static";
+          nativeBuildInputs = with llvmToolchain; [ stdenv.cc lld ];
         };
 
         defaultPackage = self.packages.${localSystem}.hyperpixel-init;
@@ -77,26 +63,22 @@
 
           inputsFrom = [ self.defaultPackage.${localSystem} ];
 
-          nativeBuildInputs = with pkgs.pkgsBuildBuild; [
+          nativeBuildInputs = with pkgsBuildBuild; [
             cargo-audit
             cargo-bloat
             cargo-edit
             cargo-udeps
             nix-linter
             nixpkgs-fmt
+            pre-commit
             rnix-lsp
             rust-analyzer-nightly
+            (pkgs.lib.lowPrio git)
           ];
-          inherit (self.defaultPackage.${localSystem}) CARGO_BUILD_TARGET RUSTFLAGS;
-          inherit (self.checks.${localSystem}.pre-commit-check) shellHook;
-        };
 
-        checks.pre-commit-check = (pre-commit-hooks.lib.${localSystem}.run {
-          src = ./.;
-          hooks = {
-            nix-linter.enable = true;
-            nixpkgs-fmt.enable = true;
-          };
-        });
+          shellHook = ''
+            pre-commit install --install-hooks
+          '';
+        };
       });
 }
