@@ -19,7 +19,7 @@ jobs:
           name: nix-community
       - name: nix-build
         run: nix build -L
-  nix-check:
+  nix-lints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
@@ -31,5 +31,9 @@ jobs:
       - uses: cachix/cachix-action@v10
         with:
           name: nix-community
-      - name: nix-check
-        run: nix flake check -L
+      - name: nix-lints
+        run: |
+          nix develop \
+            --ignore-environment \
+            --command \
+            pre-commit run --all-files
