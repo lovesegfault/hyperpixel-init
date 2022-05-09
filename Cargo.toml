@@ -9,7 +9,7 @@ anyhow = "1.0.56"
 byteorder = "1.4.3"
 flexi_logger = { version = "0.22.3", features = ["colors"] }
 libc = "0.2.121"
-log = "0.4.14"
+log = "0.4.17"
 
 [profile.release]
 lto = "fat"
