@@ -4,10 +4,6 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
     flake-utils.url = "github:numtide/flake-utils";
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
@@ -36,7 +32,7 @@
 
         rustToolchain = pkgsBuildHost.fenix.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-NL+YHnOj1++1O7CAaQLijwAxKJW9SnHg8qsiOJ1m0Kk=";
+          sha256 = "sha256-KXx+ID0y4mg2B3LHp7IyaiMrdexF6octADnAtFIOjrY=";
         };
 
         naerskCross = pkgsBuildHost.naersk.override {
@@ -48,20 +44,21 @@
         src = pkgs.gitignoreSource ./.;
       in
       {
-        packages.hyperpixel-init = naerskCross.buildPackage {
-          name = "hyperpixel-init";
+        packages = {
+          default = self.packages.${localSystem}.hyperpixel-init;
+          hyperpixel-init = naerskCross.buildPackage {
+            name = "hyperpixel-init";
 
-          inherit src;
+            inherit src;
 
-          nativeBuildInputs = with llvmToolchain; [ stdenv.cc lld ];
+            nativeBuildInputs = with llvmToolchain; [ stdenv.cc lld ];
+          };
         };
 
-        defaultPackage = self.packages.${localSystem}.hyperpixel-init;
-
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           name = "hyperpixel-init";
 
-          inputsFrom = [ self.defaultPackage.${localSystem} ];
+          inputsFrom = [ self.packages.${localSystem}.default ];
 
           nativeBuildInputs = with pkgsBuildBuild; [
             cargo-audit
