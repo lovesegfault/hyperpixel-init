@@ -1,81 +1,92 @@
 {
   inputs = {
-    fenix = {
-      url = "github:nix-community/fenix";
+    crane = {
+      url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
     };
     flake-utils.url = "github:numtide/flake-utils";
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    naersk = {
-      url = "github:nix-community/naersk";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    pre-commit = {
+      url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
     };
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
+    rust = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, fenix, flake-utils, gitignore, naersk, nixpkgs, ... }:
-    flake-utils.lib.eachDefaultSystem (localSystem:
+  outputs = { self, crane, flake-utils, gitignore, nixpkgs, pre-commit, rust }:
+    let
+      systems = [ "aarch64-darwin" "aarch64-linux" "x86_64-linux" ];
+    in
+    flake-utils.lib.eachSystem systems (hostPlatform:
       let
-        crossSystem = nixpkgs.lib.systems.examples.aarch64-multiplatform-musl // { useLLVM = true; };
+        targetPlatform = nixpkgs.lib.systems.examples.aarch64-multiplatform-musl;
 
         pkgs = import nixpkgs {
-          inherit localSystem crossSystem;
-          overlays = [ fenix.overlay gitignore.overlay naersk.overlay ];
+          localSystem = hostPlatform;
+          crossSystem = targetPlatform;
+          overlays = [ gitignore.overlay rust.overlays.default ];
         };
 
-        inherit (pkgs) pkgsBuildBuild pkgsBuildHost;
+        rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
-        llvmToolchain = pkgsBuildHost.llvmPackages_latest;
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        rustToolchain = pkgsBuildHost.fenix.fromToolchainFile {
-          file = ./rust-toolchain.toml;
-          sha256 = "sha256-KXx+ID0y4mg2B3LHp7IyaiMrdexF6octADnAtFIOjrY=";
-        };
-
-        naerskCross = pkgsBuildHost.naersk.override {
-          inherit (llvmToolchain) stdenv;
-          cargo = rustToolchain;
-          rustc = rustToolchain;
-        };
-
-        src = pkgs.gitignoreSource ./.;
+        crateExpr = { stdenv, lib, qemu, gitignoreSource }:
+          craneLib.buildPackage {
+            src = gitignoreSource ./.;
+            depsBuildBuild = [ qemu ];
+            nativeBuildInputs = [
+              stdenv.cc
+            ];
+            HOST_CC = "${stdenv.cc.nativePrefix}cc";
+          };
       in
       {
-        packages = {
-          default = self.packages.${localSystem}.hyperpixel-init;
-          hyperpixel-init = naerskCross.buildPackage {
-            name = "hyperpixel-init";
-
-            inherit src;
-
-            nativeBuildInputs = with llvmToolchain; [ stdenv.cc lld ];
+        checks = {
+          inherit (self.packages.${hostPlatform}) hyperpixel-init;
+          pre-commit = pre-commit.lib.${hostPlatform}.run {
+            src = pkgs.gitignoreSource ./.;
+            hooks = {
+              clippy.enable = true;
+              nix-linter.enable = true;
+              nixpkgs-fmt.enable = true;
+              rustfmt.enable = true;
+              statix.enable = true;
+            };
           };
         };
 
-        devShells.default = pkgs.mkShell {
-          name = "hyperpixel-init";
+        packages = {
+          default = self.packages.${hostPlatform}.hyperpixel-init;
+          hyperpixel-init = pkgs.callPackage crateExpr { };
+        };
 
-          inputsFrom = [ self.packages.${localSystem}.default ];
 
-          nativeBuildInputs = with pkgsBuildBuild; [
+        devShells.default = self.packages.${hostPlatform}.default.overrideAttrs (old: {
+          depsBuildBuild = with pkgs.pkgsBuildBuild; (old.depsBuildBuild or []) ++ [
             cargo-audit
             cargo-bloat
             cargo-edit
-            cargo-udeps
             nix-linter
             nixpkgs-fmt
-            pre-commit
             rnix-lsp
-            rust-analyzer-nightly
-            (pkgs.lib.lowPrio git)
+            rust-analyzer
+            statix
           ];
 
-          shellHook = ''
-            pre-commit install --install-hooks
+          shellHook = (old.shellHook or "") + ''
+            ${self.checks.${hostPlatform}.pre-commit.shellHook}
           '';
-        };
+        });
       });
 }
