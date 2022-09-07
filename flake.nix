@@ -59,7 +59,6 @@
             src = pkgs.gitignoreSource ./.;
             hooks = {
               clippy.enable = true;
-              nix-linter.enable = true;
               nixpkgs-fmt.enable = true;
               rustfmt.enable = true;
               statix.enable = true;
@@ -81,7 +80,6 @@
             cargo-audit
             cargo-bloat
             cargo-edit
-            nix-linter
             nixpkgs-fmt
             rnix-lsp
             rust-analyzer
