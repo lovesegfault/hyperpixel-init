@@ -25,7 +25,7 @@
 
   outputs = { self, crane, flake-utils, gitignore, nixpkgs, pre-commit, rust }:
     let
-      systems = [ "aarch64-darwin" "aarch64-linux" "x86_64-linux" ];
+      systems = [ "aarch64-linux" "x86_64-linux" ];
     in
     flake-utils.lib.eachSystem systems (hostPlatform:
       let
@@ -41,26 +41,31 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        crateExpr = { stdenv, qemu, gitignoreSource }:
-          craneLib.buildPackage {
-            src = gitignoreSource ./.;
+        src = pkgs.gitignoreSource ./.;
+
+        crateExpr = craneFn:
+          { stdenv, qemu, gitignoreSource }:
+          craneFn {
+            inherit src;
+            cargoArtifacts = craneLib.buildDepsOnly { inherit src; };
             depsBuildBuild = [ qemu ];
             nativeBuildInputs = [
               stdenv.cc
             ];
             HOST_CC = "${stdenv.cc.nativePrefix}cc";
             CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER = "${stdenv.cc.targetPrefix}cc";
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
           };
       in
       {
         checks = {
           inherit (self.packages.${hostPlatform}) hyperpixel-init;
+          crate-fmt = pkgs.callPackage (crateExpr craneLib.cargoFmt) { };
+          crate-clippy = pkgs.callPackage (crateExpr craneLib.cargoClippy) { };
           pre-commit = pre-commit.lib.${hostPlatform}.run {
-            src = pkgs.gitignoreSource ./.;
+            inherit src;
             hooks = {
-              clippy.enable = true;
               nixpkgs-fmt.enable = true;
-              rustfmt.enable = true;
               statix.enable = true;
             };
           };
@@ -68,9 +73,8 @@
 
         packages = {
           default = self.packages.${hostPlatform}.hyperpixel-init;
-          hyperpixel-init = pkgs.callPackage crateExpr { };
+          hyperpixel-init = pkgs.callPackage (crateExpr craneLib.buildPackage) { };
         };
-
 
         devShells.default = self.packages.${hostPlatform}.default.overrideAttrs (old: {
           name = "hyperpixel-init";
