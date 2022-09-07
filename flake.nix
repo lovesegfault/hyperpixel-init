@@ -41,7 +41,7 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        crateExpr = { stdenv, lib, qemu, gitignoreSource }:
+        crateExpr = { stdenv, qemu, gitignoreSource }:
           craneLib.buildPackage {
             src = gitignoreSource ./.;
             depsBuildBuild = [ qemu ];
@@ -49,6 +49,7 @@
               stdenv.cc
             ];
             HOST_CC = "${stdenv.cc.nativePrefix}cc";
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER = "${stdenv.cc.targetPrefix}cc";
           };
       in
       {
@@ -73,7 +74,10 @@
 
 
         devShells.default = self.packages.${hostPlatform}.default.overrideAttrs (old: {
-          depsBuildBuild = with pkgs.pkgsBuildBuild; (old.depsBuildBuild or []) ++ [
+          name = "hyperpixel-init";
+          src = null;
+          version = null;
+          depsBuildBuild = with pkgs.pkgsBuildBuild; (old.depsBuildBuild or [ ]) ++ [
             cargo-audit
             cargo-bloat
             cargo-edit
