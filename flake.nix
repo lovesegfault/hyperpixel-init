@@ -84,6 +84,7 @@
             cargo-audit
             cargo-bloat
             cargo-edit
+            cargo-outdated
             nixpkgs-fmt
             rnix-lsp
             rust-analyzer
