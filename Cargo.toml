@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.69"
 byteorder = "1.4.3"
-flexi_logger = { version = "0.25.1", features = ["colors"] }
+flexi_logger = { version = "0.25.3", features = ["colors"] }
 libc = "0.2.137"
 log = "0.4.14"
 
